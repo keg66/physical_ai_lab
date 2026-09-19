@@ -26,8 +26,8 @@ class BoundingBox(BaseModel):
     """A bounding box represented by its center and its dimensions."""
 
     center: Position
-    width: int = Field(gt=0)
-    height: int = Field(gt=0)
+    width: int = Field(ge=1)
+    height: int = Field(ge=1)
 
 
 class ObjectProperties(BaseModel):
