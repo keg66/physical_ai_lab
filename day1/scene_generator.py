@@ -85,8 +85,11 @@ def generate_scene(
     box_drawers = [draw_red_square, draw_blue_square, draw_green_square]
 
     for object_id in range(rng.randint(2, 5)):
-        x, y = random_position(square_size)
-        if overlaps_existing(x, y, square_size):
+        for _ in range(5):
+            x, y = random_position(square_size)
+            if not overlaps_existing(x, y, square_size):
+                break
+        else:
             continue
 
         color, draw_box = rng.choice(
@@ -104,8 +107,11 @@ def generate_scene(
         )
 
     for obstacle_id in range(rng.randint(1, 3)):
-        x, y = random_position(square_size)
-        if overlaps_existing(x, y, square_size):
+        for _ in range(5):
+            x, y = random_position(square_size)
+            if not overlaps_existing(x, y, square_size):
+                break
+        else:
             continue
 
         draw_obstacle(image, x, y, square_size)
