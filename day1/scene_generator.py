@@ -1,0 +1,144 @@
+import argparse
+import json
+import random
+from pathlib import Path
+
+from PIL import Image, ImageDraw
+
+
+def generate_white_image(output_path: str | Path = "white_image.png") -> None:
+    """Generate and save a 640x480 pure white image."""
+    image = Image.new("RGB", (640, 480), "white")
+    image.save(output_path)
+
+
+def draw_square(
+    image: Image.Image, x: int, y: int, color: str, size: int = 50
+) -> Image.Image:
+    """Place a square with the specified color on the image."""
+    ImageDraw.Draw(image).rectangle(
+        (x, y, x + size - 1, y + size - 1), fill=color
+    )
+    return image
+
+
+def draw_red_square(
+    image: Image.Image, x: int, y: int, size: int = 50
+) -> Image.Image:
+    """Place a red square on the image."""
+    return draw_square(image, x, y, "red", size)
+
+
+def draw_blue_square(
+    image: Image.Image, x: int, y: int, size: int = 50
+) -> Image.Image:
+    """Place a blue square on the image."""
+    return draw_square(image, x, y, "blue", size)
+
+
+def draw_green_square(
+    image: Image.Image, x: int, y: int, size: int = 50
+) -> Image.Image:
+    """Place a green square on the image."""
+    return draw_square(image, x, y, "green", size)
+
+
+def draw_obstacle(
+    image: Image.Image, x: int, y: int, size: int = 50
+) -> Image.Image:
+    """Place a black square obstacle on the image."""
+    return draw_square(image, x, y, "black", size)
+
+
+def generate_scene(
+    output_path: str | Path | None = None, seed: int | None = None
+) -> None:
+    """Generate and save a scene with colored boxes and black obstacles."""
+    if seed is None:
+        seed = random.SystemRandom().randint(0, 2**32 - 1)
+
+    rng = random.Random(seed)
+    image = Image.new("RGB", (640, 480), "white")
+    objects = []
+    obstacles = []
+    occupied_bboxes = []
+    square_size = 50
+
+    def random_position(size: int = 50) -> tuple[int, int]:
+        return (
+            rng.randint(0, image.width - size),
+            rng.randint(0, image.height - size),
+        )
+
+    def overlaps_existing(x: int, y: int, size: int) -> bool:
+        """Return whether a square overlaps any previously placed square."""
+        for existing_x, existing_y, existing_size in occupied_bboxes:
+            if (
+                x < existing_x + existing_size
+                and x + size > existing_x
+                and y < existing_y + existing_size
+                and y + size > existing_y
+            ):
+                return True
+        return False
+
+    box_drawers = [draw_red_square, draw_blue_square, draw_green_square]
+
+    for object_id in range(rng.randint(2, 5)):
+        x, y = random_position(square_size)
+        if overlaps_existing(x, y, square_size):
+            continue
+
+        color, draw_box = rng.choice(
+            [("red", draw_red_square), ("blue", draw_blue_square), ("green", draw_green_square)]
+        )
+        draw_box(image, x, y, square_size)
+        occupied_bboxes.append((x, y, square_size))
+        objects.append(
+            {
+                "id": f"obj_{object_id}",
+                "type": "box",
+                "property": {"color": color},
+                "bbox": {"x": x, "y": y, "width": square_size, "height": square_size},
+            }
+        )
+
+    for obstacle_id in range(rng.randint(1, 3)):
+        x, y = random_position(square_size)
+        if overlaps_existing(x, y, square_size):
+            continue
+
+        draw_obstacle(image, x, y, square_size)
+        occupied_bboxes.append((x, y, square_size))
+        obstacles.append(
+            {
+                "id": f"obs_{obstacle_id}",
+                "bbox": {"x": x, "y": y, "width": square_size, "height": square_size},
+            }
+        )
+
+    if output_path is None:
+        output_path = Path(__file__).resolve().parent / "output" / f"scene_{seed}.png"
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(output_path)
+
+    ground_truth = {
+        "image": output_path.name,
+        "objects": objects,
+        "obstacles": obstacles,
+    }
+    json_path = output_path.with_suffix(".json")
+    json_path.write_text(
+        json.dumps(ground_truth, indent=2), encoding="utf-8"
+    )
+    print("{} is generated".format(output_path))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", default=None)
+    parser.add_argument("--seed", type=int, default=None)
+    args = parser.parse_args()
+    generate_scene(args.output, args.seed)
