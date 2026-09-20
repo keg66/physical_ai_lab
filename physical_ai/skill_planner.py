@@ -7,7 +7,7 @@ from physical_ai.world_state import ObjectType, WorldState
 from physical_ai.grounding_result import GroundingResults
 from physical_ai.task_spec import TaskSpec
 from physical_ai.skill_plan import SkillPlan
-from day2.plan_validator import validate_plan
+from physical_ai.plan_validator import validate_plan
 
 client = genai.Client()
 
