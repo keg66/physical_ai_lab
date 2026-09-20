@@ -1,12 +1,12 @@
 from pydantic import BaseModel
-from enum import Enum
 
 from skill_type import *
 
 
-class SkillRequest(BaseModel):
+class SkillStep(BaseModel):
     skill: SkillType
     parameter: PickParameters | PlaceParameters
-    precondition: str
-    success_condition: str
-    timeout_sec: float
+
+
+class SkillPlan(BaseModel):
+    steps: list[SkillStep]
