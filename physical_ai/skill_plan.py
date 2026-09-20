@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from skill_type import *
+from .skill_type import PickParameters, PlaceParameters, SkillType
 
 
 class SkillStep(BaseModel):

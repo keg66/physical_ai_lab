@@ -1,7 +1,7 @@
 from google import genai
 from google.genai import types
 
-from task_spec import TaskSpec
+from physical_ai.task_spec import TaskSpec
 
 client = genai.Client()
 

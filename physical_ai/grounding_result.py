@@ -2,7 +2,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from world_state import WorldObject
+from .world_state import WorldObject
 
 
 class GroundingStatus(str, Enum):

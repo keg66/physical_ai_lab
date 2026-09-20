@@ -1,7 +1,5 @@
 from pydantic import BaseModel
-from enum import Enum
-
-from skill_type import *
+from .skill_type import PickParameters, PlaceParameters, SkillType
 
 
 class SkillRequest(BaseModel):

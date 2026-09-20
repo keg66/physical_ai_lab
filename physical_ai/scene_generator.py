@@ -142,7 +142,10 @@ def generate_scene(
         )
 
     if output_path is None:
-        output_path = Path(__file__).resolve().parent / "output" / f"scene_{seed}.png"
+        # scene_generator.py is in physical_ai/, while output/ belongs to the
+        # physical_ai_training project root.
+        project_root = Path(__file__).resolve().parents[1]
+        output_path = project_root / "output" / f"scene_{seed}.png"
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -2,8 +2,8 @@ from google import genai
 from google.genai import types
 from PIL import Image
 
-from world_state import ObjectType, WorldState
-from grounding_result import GroundingResult
+from physical_ai.world_state import ObjectType, WorldState
+from physical_ai.grounding_result import GroundingResult
 
 client = genai.Client()
 

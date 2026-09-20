@@ -1,5 +1,5 @@
 from enum import Enum
-from skill_result import SkillResult, SkillResultReason, SkillResultStatus
+from .skill_result import SkillResult, SkillResultReason, SkillResultStatus
 
 
 class RecoveryAction(str, Enum):

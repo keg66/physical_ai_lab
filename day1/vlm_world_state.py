@@ -2,7 +2,7 @@ from google import genai
 from google.genai import types
 from PIL import Image
 
-from world_state import WorldState
+from physical_ai.world_state import WorldState
 
 client = genai.Client()
 
