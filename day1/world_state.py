@@ -35,6 +35,7 @@ class ObjectProperties(BaseModel):
 
 
 class WorldObject(BaseModel):
+    id: str | None = None
     type: ObjectType
     bbox: BoundingBox
     properties: ObjectProperties
