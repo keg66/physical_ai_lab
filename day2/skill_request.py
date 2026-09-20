@@ -4,11 +4,26 @@ from enum import Enum
 
 class SkillType(str, Enum):
     PICK = "pick"
+    PLACE = "place"
+
+
+class PickParameters(BaseModel):
+    target_id: str
+
+
+class RelationType(str, Enum):
+    NEXT_TO = "next_to"
+
+
+class PlaceParameters(BaseModel):
+    object_id: str
+    relation: RelationType
+    reference_id: str
 
 
 class SkillRequest(BaseModel):
     skill: SkillType
-    target_id: str
+    parameter: PickParameters | PlaceParameters
     precondition: str
     success_condition: str
     timeout_sec: float
