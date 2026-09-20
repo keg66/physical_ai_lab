@@ -15,3 +15,7 @@ class GroundingResult(BaseModel):
     status: GroundingStatus
     object: WorldObject | None
     candidates: list[WorldObject] = Field(default_factory=list)
+
+
+class GroundingResults(BaseModel):
+    results: list[GroundingResult] = Field(default_factory=list)
