@@ -21,9 +21,7 @@ def draw_square(
     height: int = 50,
 ) -> Image.Image:
     """Place a rectangle with the specified color on the image."""
-    ImageDraw.Draw(image).rectangle(
-        (x, y, x + width - 1, y + height - 1), fill=color
-    )
+    ImageDraw.Draw(image).rectangle((x, y, x + width - 1, y + height - 1), fill=color)
     return image
 
 
@@ -104,7 +102,11 @@ def generate_scene(
             continue
 
         color, draw_box = rng.choice(
-            [("red", draw_red_square), ("blue", draw_blue_square), ("green", draw_green_square)]
+            [
+                ("red", draw_red_square),
+                ("blue", draw_blue_square),
+                ("green", draw_green_square),
+            ]
         )
         draw_box(image, x, y, *box_size)
         occupied_bboxes.append((x, y, *box_size))
@@ -130,7 +132,12 @@ def generate_scene(
         obstacles.append(
             {
                 "id": f"obs_{obstacle_id}",
-                "bbox": {"x": x, "y": y, "width": obstacle_width, "height": obstacle_height},
+                "bbox": {
+                    "x": x,
+                    "y": y,
+                    "width": obstacle_width,
+                    "height": obstacle_height,
+                },
             }
         )
 
@@ -147,9 +154,7 @@ def generate_scene(
         "obstacles": obstacles,
     }
     json_path = output_path.with_suffix(".json")
-    json_path.write_text(
-        json.dumps(ground_truth, indent=2), encoding="utf-8"
-    )
+    json_path.write_text(json.dumps(ground_truth, indent=2), encoding="utf-8")
     print("{} is generated".format(output_path))
 
 
