@@ -12,6 +12,7 @@ class GroundingStatus(str, Enum):
 
 
 class GroundingResult(BaseModel):
+    ref: str
     status: GroundingStatus
     object: WorldObject | None
     candidates: list[WorldObject] = Field(default_factory=list)

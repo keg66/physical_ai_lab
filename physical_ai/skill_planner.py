@@ -1,104 +1,44 @@
-from google import genai
-from google.genai import types
-from PIL import Image
 from pathlib import Path
 
-from physical_ai.world_state import ObjectType, WorldState
-from physical_ai.grounding_result import GroundingResults
-from physical_ai.task_spec import TaskSpec
-from physical_ai.skill_plan import SkillPlan
-from physical_ai.plan_validator import validate_plan
+from google import genai
+from google.genai import types
 
-client = genai.Client()
+from .grounding_result import GroundingResults
+from .skill_plan import SkillPlan
+from .task_spec import TaskSpec
+from .world_state import WorldState
 
-image = Image.open("output/scene_1.png")
 
-model = "gemini-3.5-flash-lite"
+class SkillPlanner:
+    def __init__(
+        self, client: genai.Client | None = None, model: str = "gemini-3.5-flash-lite"
+    ):
+        self.client = client or genai.Client()
+        self.model = model
+        self.skills = Path(__file__).with_name("skills.md").read_text()
 
-print("############ TaskSpec #############")
-response = client.models.generate_content(
-    model=model,
-    contents=["赤い箱を青い箱の隣りに置いて"],
-    config=types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=TaskSpec,
-    ),
-)
-
-task_spec = response.parsed
-print(task_spec)
-print()
-
-print("############ WorldState #############")
-response = client.models.generate_content(
-    model=model,
-    contents=[
-        "Detect objects and obstacles (black ones) in image and transform WorldState",
-        image,
-    ],
-    config=types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=WorldState,
-    ),
-)
-
-world_state = response.parsed
-print(world_state)
-print()
-print("Simulate the tracker recognizing and assigning an ID.")
-for i, obj in enumerate(world_state.objects):
-    prefix = "obs" if obj.type == ObjectType.OBSTACLE else "obj"
-    obj.id = f"{prefix}_{i}"
-print(world_state)
-print()
-
-print("############ Grounding #############")
-world_state_json = response.parsed.model_dump_json()
-response = client.models.generate_content(
-    model=model,
-    contents=[
-        world_state_json,
-        task_spec.model_dump_json(),
-        "関心のある物体をすべて抽出して",
-    ],
-    config=types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=GroundingResults,
-    ),
-)
-
-grounding_result = response.parsed
-print(grounding_result)
-print()
-
-print("############ Skill Planner #############")
-skills = Path("physical_ai/skills.md").read_text()
-response = client.models.generate_content(
-    model=model,
-    contents=[
-        f"""
-# Task
+    def plan(
+        self,
+        task_spec: TaskSpec,
+        world_state: WorldState,
+        grounding_results: GroundingResults,
+    ) -> SkillPlan:
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=[
+                f"""# Task
 {task_spec.model_dump_json()}
-
+# World State
+{world_state.model_dump_json()}
 # Grounding Results
-{grounding_result.model_dump_json()}
-
+{grounding_results.model_dump_json()}
 # Available Skills
-{skills}
-
+{self.skills}
 # Instruction
-上記のAvailable Skillsだけを使って目的を達成するSkillPlanを作成してください。
-"""
-    ],
-    config=types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=SkillPlan,
-    ),
-)
-
-skill_plan = response.parsed
-print(skill_plan)
-print()
-
-print("############ Plan Validation #############")
-print(validate_plan(skill_plan, world_state))
+上記のAvailable Skillsだけを使って目的を達成するSkillPlanを作成してください。"""
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json", response_schema=SkillPlan
+            ),
+        )
+        return response.parsed
