@@ -136,8 +136,8 @@ if __name__ == "__main__":
         if epoch % 10 == 0:
             print(f"epoch {epoch}: loss = {loss.item():.6f}")
 
-    start: Point = (-1.0, -1.0)
-    goal: Point = (1.0, 1.0)
+    start: Point = (0.0, 0.0)
+    goal: Point = (0.8, 0.8)
     trajectory = rollout(policy, start, goal)
 
     xs, ys = zip(*trajectory)
