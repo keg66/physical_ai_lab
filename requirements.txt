@@ -1,2 +1,4 @@
 Pillow
 google-genai
+torch
+numpy
