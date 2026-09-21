@@ -2,6 +2,7 @@
 
 import math
 
+import matplotlib.pyplot as plt
 import torch
 
 
@@ -84,8 +85,9 @@ def rollout(
     goal: Point,
     dt: float = 0.1,
     max_steps: int = 50,
-):
+) -> list[Point]:
     position = start
+    trajectory = [position]
 
     with torch.no_grad():
         for step in range(max_steps):
@@ -95,6 +97,7 @@ def rollout(
             Y = policy(X)
             # 3. robot_dynamics() → new position
             position = robot_dynamics(position, Y.tolist(), dt)
+            trajectory.append(position)
             # 4. goalまでの距離を計算
             distance_to_goal = calc_dist(position, goal)
             print(f"[{step}] ({position})")
@@ -102,9 +105,11 @@ def rollout(
             if distance_to_goal < 0.1:
                 print("GOAL!")
                 break
-            pass
 
-        print("Reached max steps...")
+        else:
+            print("Reached max steps...")
+
+    return trajectory
 
 
 if __name__ == "__main__":
@@ -131,6 +136,18 @@ if __name__ == "__main__":
         if epoch % 10 == 0:
             print(f"epoch {epoch}: loss = {loss.item():.6f}")
 
-    start: Point = (0.0, 0.0)
-    goal: Point = (10.0, 0.0)
-    rollout(policy, start, goal)
+    start: Point = (-1.0, -1.0)
+    goal: Point = (1.0, 1.0)
+    trajectory = rollout(policy, start, goal)
+
+    xs, ys = zip(*trajectory)
+    plt.plot(xs, ys, "o-", label="trajectory")
+    plt.scatter(*start, color="green", s=100, label="start", zorder=3)
+    plt.scatter(*goal, color="red", s=100, label="goal", zorder=3)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title("Policy rollout")
+    plt.axis("equal")
+    plt.grid(True)
+    plt.legend()
+    plt.show()
