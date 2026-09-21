@@ -1,10 +1,7 @@
 from pydantic import BaseModel
-from .skill_type import PickParameters, PlaceParameters, SkillType
+from .skill_plan import SkillStep
 
 
 class SkillRequest(BaseModel):
-    skill: SkillType
-    parameter: PickParameters | PlaceParameters
-    precondition: str
-    success_condition: str
+    step: SkillStep
     timeout_sec: float
