@@ -3,3 +3,5 @@ google-genai
 torch
 numpy
 matplotlib
+lerobot
+lerobot[dataset]
