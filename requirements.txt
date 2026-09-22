@@ -6,4 +6,5 @@ matplotlib
 lerobot
 lerobot[dataset]
 requests
+laya
 
