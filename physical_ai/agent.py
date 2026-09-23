@@ -5,7 +5,7 @@ from .grounding_result import GroundingResults, GroundingStatus
 from .perception import Perception
 from .plan_validator import PlanValidator
 from .robot_runtime import RobotRuntime
-from .recovery_action import RecoveryAction, RecoveryRouter
+from .recovery import RecoveryAction, RecoveryRouter
 from .skill_plan import SkillPlan
 from .skill_planner import SkillPlanner
 from .skill_request import SkillRequest
