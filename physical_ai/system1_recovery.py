@@ -58,10 +58,18 @@ class System1Recovery:
 
     @staticmethod
     def _describe_context(context: RecoveryContext) -> str:
+        obs = context.observation
+
         return (
-            "ロボットのスキル実行に失敗した。"
+            "ロボットのPICKスキル実行に失敗した。"
             f"再試行回数は{context.retry_count}回。"
             f"実行結果: status={context.skill_result.status.value}, "
             f"reason={context.skill_result.reason.value}。"
+            "実行時の観測: "
+            f"target_visible={obs.target_visible}, "
+            f"target_position_changed={obs.target_position_changed}, "
+            f"target_reachable={obs.target_reachable}, "
+            f"contact_detected={obs.contact_detected}, "
+            f"grasp_quality={obs.grasp_quality:.2f}。"
             f"現在のワールド状態: {context.world_state.model_dump_json()}"
         )

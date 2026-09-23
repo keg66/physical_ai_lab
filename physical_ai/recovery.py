@@ -1,5 +1,7 @@
-from pydantic import BaseModel
 from enum import Enum
+
+from pydantic import BaseModel, Field
+
 from .skill_result import SkillResult, SkillResultReason, SkillResultStatus
 from .world_state import WorldState
 
@@ -13,10 +15,19 @@ class RecoveryAction(str, Enum):
     ABORT = "abort"
 
 
+class ExecutionObservation(BaseModel):
+    target_visible: bool
+    target_position_changed: bool
+    target_reachable: bool
+    contact_detected: bool
+    grasp_quality: float = Field(ge=0.0, le=1.0)
+
+
 class RecoveryContext(BaseModel):
     world_state: WorldState
     skill_result: SkillResult
-    retry_count: int
+    retry_count: int = Field(ge=0)
+    observation: ExecutionObservation
 
 
 class RecoveryRouter:
