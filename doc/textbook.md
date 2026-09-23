@@ -1,11 +1,55 @@
 # Physical AI Hands-on Textbook
-## Day 1–2: VLMからRobot Runtimeまで
+
+VLMによる知覚からskill planning、Robot Runtime、robot learning、recovery、安全境界までを、小さな実験を通して学ぶDay 1〜5の教材です。
+
+> [!WARNING]
+> このリポジトリは教育・研究目的の実験的なソフトウェアです。安全認証を受けた制御システムではありません。現在のRobot Runtimeはfake実装であり、実機に必要な速度・力・衝突制限、非常停止などのruntime/control safetyは実装していません。
+
+## この教材について
+
+### 想定読者
+
+- Pythonの基本的なコードを読める人
+- LLM/VLMをロボットシステムへ組み込む際の責務分離を学びたい人
+- 実機を用意する前に、software architectureを小さな例で確認したい人
+
+PyTorch、Pydantic、ロボティクスの基礎知識があると読みやすくなりますが、ROS 2や実機はこの教材の実行に必須ではありません。
+
+### 学習ロードマップ
+
+| Day | テーマ | 到達点 |
+|---|---|---|
+| 1 | VLM・Grounding・Structured World Model | 自然言語と画像を明示的なschemaへ変換する |
+| 2 | System 2・Skill Planning・Robot Runtime | semantic reasoningと実行境界を分離する |
+| 3 | Robot Learning・VLA・Action Chunking | learned policyをskill境界の内側に位置付ける |
+| 4 | Hybrid Physical AI・System 1 Recovery | failure observationからbounded recoveryを選ぶ |
+| 5 | Safety・Failure Injection・Evaluation | request-level safetyと評価の限界を理解する |
+
+### 読み方と実行方法
+
+本文は、学習時に行った実験から得た設計上の知見を再構成したものです。会話履歴を知らなくても読めるよう、各Dayの冒頭に関連コードを示します。環境構築、APIキー、再現用sceneの生成、実行コマンドは[リポジトリのREADME](../README.md)を参照してください。
+
+外部APIを使う実験の出力やlatencyは、model、network、地域、実行時期によって変化します。本文中の数値は特定時点の小規模な観測例であり、一般的な性能や再現値を保証するものではありません。
+
+### 表記
+
+本文では、コード上の型名（`WorldState`など）と分野で一般的な略語（VLM、VLA、ACTなど）は英語表記を維持します。主な用語は初出時に説明します。
+
+- **LLM**: Large Language Model
+- **VLM**: Vision-Language Model
+- **VLA**: Vision-Language-Action model
+- **Grounding**: 自然言語の参照を具体的なentityへ対応付ける処理
+- **System 2**: 長い時間スケールでsemantic reasoningや計画を行うcomponent
+- **System 1**: この教材では、限定された候補から状況依存の判断を行うcomponent
+- **Robot Runtime**: 上位のskill requestを実行系へ接続するsoftware boundary
 
 ---
 
-# Day 1 — VLM・Grounding・Structured World Model
+## Day 1 — VLM・Grounding・Structured World Model
 
-## 1. この章のゴール
+### 1. この章のゴール
+
+関連コード：[`day1/`](../day1/)、[`world_state.py`](../physical_ai/world_state.py)、[`grounder.py`](../physical_ai/grounder.py)、[`task_parser.py`](../physical_ai/task_parser.py)
 
 Physical AIでは、VLMやLLMの出力をそのままロボットの制御入力として使うのではなく、ロボットシステムが扱える**明示的なデータ構造**へ変換することが重要です。
 
@@ -38,7 +82,7 @@ flowchart TD
 
 ---
 
-## 2. VLMをロボットの知覚に使う
+### 2. VLMをロボットの知覚に使う
 
 VLM（Vision-Language Model）は、画像を単に分類するだけでなく、
 
@@ -77,13 +121,13 @@ bounding box
 
 などを持たせます。
 
-### ポイント
+#### ポイント
 
 VLMは**semantic perception**として使い、後段のsoftwareが扱いやすいstructured dataへ変換します。
 
 ---
 
-## 3. Structured Output
+### 3. Structured Output
 
 LLM/VLMにJSONを「それっぽく」生成させるだけでは、fieldの欠落や型の違いが発生します。
 
@@ -127,17 +171,17 @@ Structured OutputはAIの出力を**安全に扱いやすくする仕組み**で
 
 ---
 
-## 4. VLMとGeometry
+### 4. VLMとGeometry
 
 VLMはbounding boxやobject centerを推定できます。
 
-しかし実験すると、
+この教材で単純な図形sceneを観測した例では、
 
 - object centerは比較的正確
 - bounding boxはおおよその位置として使える
 - object形状によってwidth / heightの誤差が生じる
 
-といった特徴が確認できます。
+といった傾向が見られました。ただし、これは特定のmodelと小規模な入力による観測であり、一般的な精度評価ではありません。
 
 したがってVLMのgeometryは、
 
@@ -160,7 +204,7 @@ flowchart TD
 
 のように、後段のperceptionと組み合わせます。
 
-### Coordinate Contract
+#### Coordinate Contract
 
 位置を扱うときは、
 
@@ -177,7 +221,7 @@ world frameなのか
 
 ---
 
-## 5. TaskSpec
+### 5. TaskSpec
 
 ユーザーの自然言語指示も、そのまま後段へ渡さずstructured representationへ変換します。
 
@@ -210,7 +254,7 @@ relation   = NEXT_TO
 
 ---
 
-## 6. Grounding
+### 6. Grounding
 
 Groundingは、
 
@@ -254,7 +298,7 @@ Groundingできなかった場合は、後段のPlannerへ進ませないこと�
 
 ---
 
-## 7. Object Identity
+### 7. Object Identity
 
 VLMが検出したobjectにstable IDを持たせる責務は、本来VLMにはありません。
 
@@ -283,7 +327,7 @@ Tracking    = WHICH PHYSICAL OBJECT OVER TIME
 
 ---
 
-## 8. Grounding Contract
+### 8. Grounding Contract
 
 Grounderは、要求されたreferenceごとに結果を返すようにします。
 
@@ -325,7 +369,7 @@ Validator
 
 ---
 
-## 9. Day 1 Architecture
+### 9. Day 1 Architecture
 
 Day 1終了時点では、次の責務分離になります。
 
@@ -350,7 +394,7 @@ Image ─────────────▶ VLM Perception
                    GroundingResults
 ```
 
-### Day 1で覚えておくこと
+#### Day 1で覚えておくこと
 
 1. VLMの自由文をそのままrobot systemへ渡さない
 2. Structured Outputで明示的なcontractを作る
@@ -362,9 +406,11 @@ Image ─────────────▶ VLM Perception
 
 ---
 
-# Day 2 — System2・Skill Planning・Robot Runtime
+## Day 2 — System 2・Skill Planning・Robot Runtime
 
-## 10. この章のゴール
+### 10. この章のゴール
+
+関連コード：[`agent.py`](../physical_ai/agent.py)、[`skill_planner.py`](../physical_ai/skill_planner.py)、[`plan_validator.py`](../physical_ai/plan_validator.py)、[`robot_runtime.py`](../physical_ai/robot_runtime.py)
 
 Day 2では、Day 1で作ったstructured representationを使って、
 
@@ -394,7 +440,7 @@ Recovery
 
 ---
 
-## 11. System2とRobot Runtime
+### 11. System 2とRobot Runtime
 
 LLMは複雑な状況をsemanticにreasoningできます。
 
@@ -432,7 +478,7 @@ joint velocityやmotor torqueを直接生成させるわけではありません
 
 ---
 
-## 12. Skill Catalog
+### 12. Skill Catalog
 
 LLMがskillを適切に選ぶには、そのskillが何を意味するかを知る必要があります。
 
@@ -481,7 +527,7 @@ PLACE(obj_0, NEXT_TO, obj_2)
 
 ---
 
-## 13. SkillPlan
+### 13. SkillPlan
 
 SkillPlanは、
 
@@ -512,7 +558,7 @@ LLMが生成するschemaは、可能な限り「不正な組み合わせを表�
 
 ---
 
-## 14. Plan Validation
+### 14. Plan Validation
 
 LLMが生成したSkillPlanは、そのままRobot Runtimeへ送信しません。
 
@@ -528,20 +574,20 @@ flowchart TD
 
 Validatorでは例えば、
 
-### Reference Integrity
+#### Reference Integrity
 
 ```text
 target_idがWorldStateに存在するか
 ```
 
-### Skill Preconditions
+#### Skill Preconditions
 
 ```text
 すでにobjectを持っている状態で
 別のPICKをしていないか
 ```
 
-### Skill Effects
+#### Skill Effects
 
 ```text
 PICK(obj_0)
@@ -565,7 +611,7 @@ PLACEだけのplan
 
 ---
 
-## 15. ExecutabilityとGoal Satisfaction
+### 15. ExecutabilityとGoal Satisfaction
 
 Plan Validationでは、2つの概念を区別する必要があります。
 
@@ -603,7 +649,7 @@ Goal Validator
 
 ---
 
-## 16. SkillRequest
+### 16. SkillRequest
 
 SkillPlanはSystem2側のrepresentationです。
 
@@ -647,7 +693,7 @@ Runtime = HOW TO EXECUTE
 
 ---
 
-## 17. Robot Runtime
+### 17. Robot Runtime
 
 Robot Runtimeは、1つのSkillRequestを受け取って実行します。
 
@@ -682,7 +728,7 @@ PLACE
 
 ---
 
-## 18. SkillResult
+### 18. SkillResult
 
 Robot Runtimeは実行結果をstructuredに返します。
 
@@ -714,7 +760,7 @@ failure reasonの粒度は、
 
 ---
 
-## 19. Recovery
+### 19. Recovery
 
 Physical AIは、一度Planを作って最後まで実行するだけでは不十分です。
 
@@ -743,7 +789,7 @@ flowchart TD
 
 ---
 
-## 20. Reobserve and Reground
+### 20. Reobserve and Reground
 
 例えばPICK中に対象が消え、
 
@@ -783,7 +829,7 @@ SkillPlan        ← 再生成
 
 ---
 
-## 21. Agent / Orchestrator
+### 21. Agent / Orchestrator
 
 ここまでのcomponentをAgentが接続します。
 
@@ -821,9 +867,9 @@ LLMは必要なreasoningを行うcomponentの1つです。
 
 ---
 
-# Day 2 Part 2 — Timing Boundary
+### Day 2補講 — Timing Boundary
 
-## 22. なぜSystem2とRobot Runtimeを分離するのか
+#### 22. なぜSystem 2とRobot Runtimeを分離するのか
 
 責務だけでなく、**時間スケール**も大きく異なります。
 
@@ -853,7 +899,9 @@ LLMの推論が遅れたからといって、robot control loopまで停止し�
 
 ---
 
-## 23. 100 Hz Mini-lab
+#### 23. 100 Hz Mini-lab
+
+実行コード：[`day2/rt_mini_lab.py`](../day2/rt_mini_lab.py)。コマンドは[README](../README.md#2-外部apiなしのmini-lab)を参照してください。
 
 10 ms周期のloopを作り、
 
@@ -864,21 +912,21 @@ jitter
 deadline miss
 ```
 
-を測定しました。
+を測定するmini-labです。
 
-### Period
+##### Period
 
 実際のloop開始間隔。
 
-### Execution Time
+##### Execution Time
 
 1 iterationの処理時間。
 
-### Jitter
+##### Jitter
 
 予定開始時刻と実際の開始時刻のずれ。
 
-### Deadline Miss
+##### Deadline Miss
 
 定めたdeadlineまでに処理が完了しなかったこと。
 
@@ -892,7 +940,7 @@ deadline miss
 
 ---
 
-## 24. Absolute Scheduling
+#### 24. Absolute Scheduling
 
 周期loopでは、
 
@@ -931,11 +979,11 @@ sleep time
 
 ---
 
-## 25. CPU LoadとJitter
+#### 25. CPU LoadとJitter
 
-通常のLinux上で100 Hz loopを実行すると、平均周期はかなり正確に10 msとなりました。
+学習時に通常のLinux上で100 Hz loopを実行した例では、平均周期はおおむね10 msとなりました。
 
-しかしCPU loadを加えると、最大jitterはおよそ、
+同じ学習セッションでCPU loadを加えた例では、最大jitterはおよそ、
 
 ```text
 約1.1 ms
@@ -943,7 +991,7 @@ sleep time
 約3.25 ms
 ```
 
-まで増加しました。
+まで増加しました。この値は当時の環境で得た参考値であり、現在の`rt_mini_lab.py`はCPU loadの生成までは自動化していません。
 
 平均periodは10 msのままでも、個々のiterationは、
 
@@ -964,23 +1012,23 @@ sleep time
 
 ---
 
-## 26. Real-Timeの分類
+#### 26. Real-Timeの分類
 
-### Best-effort
+##### Best-effort
 
 できるだけdeadlineに間に合わせるが保証しない。
 
 通常Linux上の一般的なapplicationは基本的にここです。
 
-### Soft Real-Time
+##### Soft Real-Time
 
 deadline missによって品質は低下するが、多少のmissは許容されます。
 
-### Firm Real-Time
+##### Firm Real-Time
 
 deadlineを過ぎた結果には価値がありません。ただし少数のmissが直ちにsystem failureになるとは限りません。
 
-### Hard Real-Time
+##### Hard Real-Time
 
 deadline missを許容できず、worst-caseを含めたtiming guaranteeが必要です。
 
@@ -998,57 +1046,46 @@ Real-Time requirementはfrequencyではなく、
 
 ---
 
-# 27. Day 2 Architecture
+#### 27. Day 2 Architecture
 
 Day 2終了時点のarchitectureは次のようになります。
 
-```text
-                 Slow / Semantic / Non-deterministic
-┌───────────────────────────────────────────────────┐
-│                                                   │
-│  User                                             │
-│   ↓                                               │
-│  Task Parser → TaskSpec                           │
-│                 ↓                                 │
-│  Perception → WorldState                          │
-│                 ↓                                 │
-│  Grounder → GroundingResults                      │
-│                 ↓                                 │
-│  Skill Planner / System2                          │
-│                 ↓                                 │
-│              SkillPlan                            │
-│                 ↓                                 │
-│            Plan Validator                         │
-│                                                   │
-└──────────────────────┬────────────────────────────┘
-                       │
-                       │ SkillStep
-                       ▼
-                 Agent / Orchestrator
-                       │
-                       │ SkillRequest
-                       ▼
-┌───────────────────────────────────────────────────┐
-│            Robot Execution Boundary               │
-│                                                   │
-│              Robot Runtime                        │
-│                   │                               │
-│              SkillResult                          │
-│                   │                               │
-└───────────────────┬───────────────────────────────┘
-                    │
-                    ▼
-              Recovery Router
-               /      |      \
-              /       |       \
-      REOBSERVE   ASK_SYSTEM2   ABORT
-          │
-          └──────────────→ Perception
+```mermaid
+flowchart TD
+    User["User Instruction"]
+    Image["Camera Image"]
+
+    subgraph Slow["Slow / Semantic / Non-deterministic"]
+        Parser["Task Parser"] --> TaskSpec
+        Perception["VLM Perception"] --> WorldState
+        TaskSpec --> Grounder
+        WorldState --> Grounder
+        Grounder --> GroundingResults
+        TaskSpec --> Planner["Skill Planner / System 2"]
+        WorldState --> Planner
+        GroundingResults --> Planner
+        Planner --> SkillPlan
+        SkillPlan --> Validator["Plan Validator"]
+    end
+
+    User --> Parser
+    Image --> Perception
+    Validator -->|"Validated SkillStep"| Agent["Agent / Orchestrator"]
+
+    subgraph Execution["Robot Execution Boundary"]
+        Runtime["Robot Runtime"] --> SkillResult
+    end
+
+    Agent -->|"SkillRequest"| Runtime
+    SkillResult --> Recovery["Recovery Router"]
+    Recovery -->|"REOBSERVE"| Perception
+    Recovery -->|"ASK_SYSTEM2"| Planner
+    Recovery -->|"ABORT"| Stop["Stop"]
 ```
 
 ---
 
-# 28. Day 1–2で身につける設計原則
+#### 28. Day 1–2で身につける設計原則
 
 この2日間で最も重要なのは、個々のAPIの使い方ではありません。
 
@@ -1100,7 +1137,7 @@ Day 1–2では、そのための最小のclosed-loop Physical AI architecture�
 
 ---
 
-# 29. 次のステップ
+#### 29. 次のステップ
 
 ここまでは主に、
 
@@ -1139,9 +1176,13 @@ Day 1–2で作ったSkill boundaryを維持したまま、
 
 ---
 
-# Day 3 — Robot Learning・VLA・Action Chunking
+## Day 3 — Robot Learning・VLA・Action Chunking
 
-## 30. この章のゴール
+### 30. この章のゴール
+
+関連コード：[`day3/bc_mini_lab.py`](../day3/bc_mini_lab.py)、[`day3/bc_mini_lab_action_chunking.py`](../day3/bc_mini_lab_action_chunking.py)、[`day3/lerobot_dataset_lab.py`](../day3/lerobot_dataset_lab.py)、[`day3/lerobot_act_lab.py`](../day3/lerobot_act_lab.py)
+
+BCのmini-labはCPUでも実行できます。LeRobotの例は外部datasetを取得し、ACTのtraining stepにはCUDA環境が必要です。実行条件は[README](../README.md#4-lerobot--act)を参照してください。
 
 Day 3では、Day 2までのRobot Runtimeに**learned policy**を導入するための基礎を学びます。
 
@@ -1164,7 +1205,7 @@ Day 2で作ったSkill boundaryを維持しながら、
 
 ---
 
-## 31. Behavior Cloning
+### 31. Behavior Cloning
 
 Behavior Cloning（BC）は、expert demonstrationから
 
@@ -1199,7 +1240,7 @@ flowchart LR
 
 ---
 
-## 32. Distribution Shift
+### 32. Distribution Shift
 
 BCの重要な問題が**distribution shift**です。
 
@@ -1236,7 +1277,7 @@ DAggerはlearner自身が訪れたstateにもexpert actionを追加すること�
 
 ---
 
-## 33. BCからVLAへ
+### 33. BCからVLAへ
 
 toy BCでは、
 
@@ -1277,7 +1318,7 @@ flowchart LR
 
 ---
 
-## 34. Action Representation
+### 34. Action Representation
 
 Robot Policyが何をactionとして出力するかは重要な設計判断です。
 
@@ -1305,7 +1346,7 @@ flowchart TD
 
 ---
 
-## 35. Action Chunking
+### 35. Action Chunking
 
 1 stepずつactionを予測する代わりに、未来の複数actionをまとめて生成する方法を**Action Chunking**と呼びます。
 
@@ -1342,7 +1383,7 @@ flowchart LR
 
 ---
 
-## 36. Multimodal Action Distribution
+### 36. Multimodal Action Distribution
 
 単純なMSEによるBehavior Cloningでは、複数の正解行動がある場合に問題が起こります。
 
@@ -1372,7 +1413,7 @@ Robot actionはしばしば**multimodal distribution**になります。
 
 ---
 
-## 37. Diffusion Policy
+### 37. Diffusion Policy
 
 Diffusion Policyではactionを直接一点回帰するのではなく、
 
@@ -1410,7 +1451,7 @@ flowchart LR
 
 ---
 
-## 38. Flow Matching
+### 38. Flow Matching
 
 Flow Matchingもnoise distributionからaction distributionを生成するgenerative policyとして利用できます。
 
@@ -1439,7 +1480,7 @@ DiffusionとFlow Matchingはどちらもmultimodalなaction generationを扱え�
 
 ---
 
-## 39. TransformerとDiffusion / Flow
+### 39. TransformerとDiffusion / Flow
 
 TransformerとDiffusion / Flowは競合する概念ではありません。
 
@@ -1462,7 +1503,7 @@ flowchart TD
 
 ---
 
-## 40. Physical Prompting / In-Context Robot Learning
+### 40. Physical Prompting / In-Context Robot Learning
 
 通常のBehavior Cloningやfine-tuningでは、demonstrationをtraining dataとしてweight updateします。
 
@@ -1509,9 +1550,9 @@ flowchart LR
 
 ---
 
-## 41. LeRobot Dataset
+### 41. LeRobot Dataset
 
-LeRobotを使って実際のRobot Learning datasetを確認しました。
+この教材ではLeRobotを使ってRobot Learning datasetの構造を確認します。
 
 PushT datasetには、
 
@@ -1551,9 +1592,9 @@ raw datasetをaction chunkごとに重複保存する必要はありません。
 
 ---
 
-## 42. ACT — Action Chunking with Transformers
+### 42. ACT — Action Chunking with Transformers
 
-LeRobotのACT Policyを実際に確認しました。
+続いてLeRobotのACT Policyを確認します。
 
 ```mermaid
 flowchart TD
@@ -1569,7 +1610,7 @@ flowchart TD
     Head --> Chunk["Action Chunk<br/>H × Action Dim"]
 ```
 
-今回のlabでは、
+リポジトリのlabで設定している、
 
 ```text
 chunk_size = 100
@@ -1594,7 +1635,7 @@ ACTは時間方向をflattenせず、
 
 ---
 
-## 43. ACTとCVAE
+### 43. ACTとCVAE
 
 ACTではtraining時にCVAEも利用します。
 
@@ -1619,7 +1660,7 @@ ACTは単純なMSE BCより豊かなaction sequenceを扱えますが、Diffusio
 
 ---
 
-## 44. Toy BCからLeRobot ACTまで
+### 44. Toy BCからLeRobot ACTまで
 
 最初に自作したtoy BCとLeRobotのACTは、規模こそ大きく異なりますが、trainingの基本構造は同じです。
 
@@ -1652,7 +1693,7 @@ flowchart LR
 
 ---
 
-# 45. Day 3で覚えておくこと
+### 45. Day 3で覚えておくこと
 
 1. Behavior Cloningはexpert demonstrationからobservation→actionを学習する
 2. Robot Policyではclosed-loop distribution shiftが重要
@@ -1671,7 +1712,7 @@ flowchart LR
 
 ---
 
-# 46. Day 3終了時点のArchitecture
+### 46. Day 3終了時点のArchitecture
 
 Day 1〜3を統合すると、現在のPhysical AI architectureは次のようになります。
 
@@ -1743,9 +1784,11 @@ flowchart LR
 
 ---
 
-# Day 4 — Hybrid Physical AI・System1 Recovery・Safety
+## Day 4 — Hybrid Physical AI・System 1 Recovery
 
-## 47. この章のゴール
+### 47. この章のゴール
+
+関連コード：[`skill_router.py`](../physical_ai/skill_router.py)、[`system1_recovery.py`](../physical_ai/system1_recovery.py)、[`recovery.py`](../physical_ai/recovery.py)、[`day4/jev_recovery_benchmark.py`](../day4/jev_recovery_benchmark.py)
 
 Day 4では、Day 1〜3で作ったcomponentを1つのPhysical AI systemとして統合します。
 
@@ -1776,10 +1819,11 @@ Day 4ではここへ、
 - System1 Decision
 - Recovery Context
 - deterministic recovery policy
-- Safety Supervisor
 - Failure Injection
 
 を追加します。
+
+Request-level safetyはDay 5で扱います。また、`SkillRouter`はroutingの境界を示す最小実装であり、現在の`Agent`の実行経路にはまだ接続されていません。
 
 重要なテーマは、
 
@@ -1789,7 +1833,7 @@ Day 4ではここへ、
 
 ---
 
-## 48. Skill Router
+### 48. Skill Router
 
 Robot Runtimeの内部では、同じsemantic skillでも複数の実装方法を利用できます。
 
@@ -1853,7 +1897,7 @@ Skill Router
 
 ---
 
-## 49. System1をどこへ置くか
+### 49. System 1をどこへ置くか
 
 System1 modelを導入するとき、最初に問題になるのが、
 
@@ -1869,7 +1913,7 @@ PICK → Classical / Learned
 
 を選ばせることもできます。
 
-しかし今回のlabでは、よりSystem1らしい用途として、
+このlabでは、限定された候補から素早く選ぶ用途として、
 
 > **Skill executionが失敗したときのbounded recovery decision**
 
@@ -1911,7 +1955,7 @@ Controller
 
 ---
 
-## 50. RecoveryActionの拡張
+### 50. RecoveryActionの拡張
 
 Day 2ではRecoveryActionとして、
 
@@ -1967,7 +2011,7 @@ System1に判断を委譲する
 
 ---
 
-## 51. RecoveryContext
+### 51. RecoveryContext
 
 System1へ単純に`SkillResult`だけ渡しても、適切なRecovery判断はできません。
 
@@ -2026,7 +2070,7 @@ flowchart TD
 
 ---
 
-## 52. AIに全部渡すとは何か
+### 52. AIに全部渡すとは何か
 
 Recovery Contextを設計するとき、
 
@@ -2090,9 +2134,11 @@ flowchart TD
 
 ---
 
-## 53. JevをSystem1 Recoveryとして利用
+### 53. JevをSystem 1 Recoveryとして利用
 
-今回のlabでは、System1 Recovery componentとしてJevを利用しました。
+このlabでは、System 1 Recovery componentの一例として外部サービスのJevを利用します。
+
+実行にはTypeSafe AIから発行されたcredentialが必要で、`RecoveryContext`に含まれる情報が外部APIへ送信されます。利用前にproviderの最新の利用条件とデータ取扱方針を確認してください。設定方法は[README](../README.md#5-jevによるsystem-1-recovery)を参照してください。
 
 interfaceは単純に、
 
@@ -2139,11 +2185,13 @@ recovery_action = system1_recovery.decide(context)
 
 ---
 
-## 54. Jev Recovery Mini-benchmark
+### 54. Jev Recovery Mini-benchmark
 
 System1 Recoveryのbehaviorを確認するため、4つのscenarioを用意しました。
 
-### Case 1 — 一時的なgrasp失敗
+以下は学習時の単一runを記録したbehavior probeです。model version、network、実行時期、入力によって結果は変わるため、再実行時に同じ判断やlatencyになることを保証しません。
+
+#### Case 1 — 一時的なgrasp失敗
 
 ```text
 target_visible         = true
@@ -2166,7 +2214,7 @@ RETRY
 RETRY
 ```
 
-### Case 2 — 対象が動いた
+#### Case 2 — 対象が動いた
 
 ```text
 target_visible         = true
@@ -2188,7 +2236,7 @@ REOBSERVE_AND_REGROUND
 REOBSERVE_AND_REGROUND
 ```
 
-### Case 3 — 現在姿勢では届かない
+#### Case 3 — 現在姿勢では届かない
 
 ```text
 target_visible         = true
@@ -2210,7 +2258,7 @@ REPOSITION
 REPOSITION
 ```
 
-### Case 4 — 何度も失敗している
+#### Case 4 — 何度も失敗している
 
 ```text
 target_visible         = true
@@ -2232,7 +2280,7 @@ ASK_SYSTEM2
 REPOSITION
 ```
 
-### 結果
+#### 結果
 
 ```text
 matched = 3 / 4
@@ -2254,7 +2302,7 @@ accuracy = 75%
 
 ---
 
-## 55. System1とDeterministic Policyの境界
+### 55. System 1とDeterministic Policyの境界
 
 retry_count=3でもSystem1は`REPOSITION`を選択しました。
 
@@ -2310,7 +2358,7 @@ flowchart TD
 
 ---
 
-## 56. System1のLatency
+### 56. System 1のLatency
 
 最初のbenchmarkでは最初のrequestが約700 msかかりました。
 
@@ -2331,7 +2379,7 @@ mean latency ≒ 253.6 ms
 
 でした。
 
-今回の小規模測定では、
+この小規模な単一runでは、
 
 > **warm-up後はおよそ200〜300 ms級**
 
@@ -2375,7 +2423,7 @@ PICK失敗後のRecovery Decision
 
 ---
 
-## 57. RobotRuntimeのOutcome
+### 57. RobotRuntimeのOutcome
 
 Day 2ではRobot Runtimeは、
 
@@ -2422,7 +2470,7 @@ flowchart LR
 
 ---
 
-## 58. Failure Injection付きFake RobotRuntime
+### 58. Failure Injection付きFake RobotRuntime
 
 今回のRobot RuntimeはまだFake implementationです。
 
@@ -2474,7 +2522,7 @@ RealRobotRuntime
 
 ---
 
-## 59. AgentへのSystem1 Recovery統合
+### 59. AgentへのSystem 1 Recovery統合
 
 Day 2で作ったAgentへSystem1 Recoveryを統合しました。
 
@@ -2502,11 +2550,11 @@ flowchart TD
 
 となります。
 
-### RETRY
+#### RETRY
 
 同じ`SkillRequest`をその場でもう一度実行します。
 
-### REOBSERVE_AND_REGROUND
+#### REOBSERVE_AND_REGROUND
 
 古いWorldStateを捨て、
 
@@ -2519,7 +2567,7 @@ Perception
 
 からやり直します。
 
-### REPOSITION
+#### REPOSITION
 
 本来はreposition skillを実行してから元のskillを再試行します。
 
@@ -2527,15 +2575,15 @@ Perception
 
 ---
 
-## 60. Pick & Place End-to-End Recovery
+### 60. Pick & Place DemoのEnd-to-End Recovery
 
-実際に、
+教材内のcomponentを接続し、
 
 ```text
 一番左の赤い箱を青い箱の隣へ置く
 ```
 
-というtaskを実行しました。
+というtaskを実行するdemoを構成しました。ここでいうEnd-to-Endは、教材内のperceptionからrecoveryまでを指します。物理的なPICK/PLACEは`FakeRobotRuntime`によるsimulationであり、実機動作ではありません。
 
 生成されたSkillPlanは、
 
@@ -2585,9 +2633,13 @@ flowchart TD
 
 ---
 
-# Day 5 — Safety・Failure Injection・Evaluation
+## Day 5 — Safety・Failure Injection・Evaluation
 
-## 61. Request-level Safety Supervisor
+関連コード：[`safety_supervisor.py`](../physical_ai/safety_supervisor.py)、[`agent.py`](../physical_ai/agent.py)、[`robot_runtime.py`](../physical_ai/robot_runtime.py)
+
+この章の`SafetySupervisor`はrequest-level validationを説明するためのprototypeです。対象物の存在確認だけでロボットの安全を保証するものではなく、実機に必要なruntime/control safetyの代替にはなりません。
+
+### 61. Request-level Safety Gate（`SafetySupervisor`）
 
 AIが生成したSkillRequestをRobot Runtimeへ直接流すのではなく、
 
@@ -2607,7 +2659,7 @@ flowchart LR
     Safety -->|"reject"| Violation["SAFETY_VIOLATION"]
 ```
 
-今回のSafety Supervisorは最小構成として、
+このprototypeは最小構成として、
 
 ```text
 PICK targetがWorldStateに存在するか
@@ -2634,7 +2686,7 @@ execution flowを管理するのはAgentです。
 
 ---
 
-## 62. RobotRuntimeとRobotの違い
+### 62. RobotRuntimeとRobotの違い
 
 RobotRuntimeはRobotそのものではありません。
 
@@ -2674,11 +2726,11 @@ Agentはその違いを知る必要がありません。
 
 ---
 
-## 63. Request SafetyとRuntime Safety
+### 63. Request SafetyとRuntime Safety
 
 Safetyには複数のlayerがあります。
 
-### Request-level Safety
+#### Request-level Safety
 
 ```text
 このSkillRequestを実行してよいか？
@@ -2698,7 +2750,7 @@ flowchart LR
     RequestSafety --> Runtime["RobotRuntime"]
 ```
 
-### Runtime / Control Safety
+#### Runtime / Control Safety
 
 実機ではさらに、
 
@@ -2717,11 +2769,11 @@ flowchart LR
     RuntimeSafety --> Robot
 ```
 
-今回のlabではRequest-level Safetyのみを実装しました。
+このlabではRequest-levelの最小検査のみを実装しました。速度、力、接触、人との距離、非常停止を含むruntime/control safetyは未実装です。
 
 ---
 
-## 64. Safety Failureを共通Failure Pathへ統合
+### 64. Safety Failureを共通Failure Pathへ統合
 
 Safety reject時にAgentを直接終了するのではなく、
 
@@ -2761,9 +2813,9 @@ Robot Runtime由来のFailure
 
 ---
 
-## 65. Safety Failure Injection
+### 65. Safety Failure Injection
 
-Safety Supervisorを意図的に、
+`SafetySupervisor`を意図的に、
 
 ```text
 allowed = false
@@ -2792,7 +2844,7 @@ flowchart LR
     Router --> Abort["ABORT"]
 ```
 
-というpathをEnd-to-Endで確認できました。
+というsoftware上のfailure pathを一通り確認できました。
 
 ここで重要なのは、
 
@@ -2810,7 +2862,7 @@ Safety violation
 
 ---
 
-## 66. AIに任せるもの・任せないもの
+### 66. AIに任せるもの・任せないもの
 
 今回のlabを通して、AIとdeterministic logicの責務境界が明確になりました。
 
@@ -2827,7 +2879,7 @@ flowchart TD
     System2 --> Open["Open-ended Reasoning / Replanning"]
 ```
 
-### Deterministic
+#### Deterministic
 
 必ず守りたいもの。
 
@@ -2839,7 +2891,7 @@ Schema / Reference Integrity
 Hard Constraints
 ```
 
-### System1
+#### System 1
 
 boundedだがrule化すると複雑な状況判断。
 
@@ -2849,7 +2901,7 @@ REPOSITION?
 REOBSERVE?
 ```
 
-### System2
+#### System 2
 
 open-ended reasoning。
 
@@ -2863,7 +2915,7 @@ Recovery planを再構築する
 
 ---
 
-## 67. Evaluation
+### 67. Evaluation
 
 今回の評価は大規模benchmarkではなく、
 
@@ -2899,7 +2951,7 @@ Recovery planを再構築する
 
 ---
 
-## 68. Sim2Realで問題になるもの
+### 68. Sim2Realで問題になるもの
 
 Fake Runtimeでは状態を正確に作れます。
 
@@ -2959,9 +3011,11 @@ hysteresis
 
 ---
 
-## 69. Day 1〜5 Final Architecture
+### 69. Day 1〜5 Final Architecture
 
 Day 1〜5を統合すると、今回構築したPhysical AI architectureは次のようになります。
+
+以下は実装の方向性を含む全体像です。現在のリポジトリでは、ROS 2、Gazebo、実機、実際のclassical/learned skill backend、runtime/control safetyは未実装です。実装状況の一覧は[README](../README.md#実装範囲)を参照してください。
 
 ```mermaid
 flowchart TD
@@ -3016,7 +3070,7 @@ flowchart TD
 
 ---
 
-## 70. 時間スケールによる責務分離
+### 70. 時間スケールによる責務分離
 
 今回のarchitectureは責務だけでなくtime scaleでも分離されています。
 
@@ -3061,7 +3115,7 @@ System1がLLMよりfastでも、
 
 ---
 
-## 71. Day 4–5で覚えておくこと
+### 71. Day 4–5で覚えておくこと
 
 1. Skill RouterはSkillとimplementation backendを分離する
 2. System1はSkill Routerそのものではなく、bounded situational decisionにも利用できる
@@ -3081,7 +3135,7 @@ System1がLLMよりfastでも、
 
 ---
 
-# 72. Physical AI基礎アーキテクチャ編 — Completion
+## 72. Physical AI基礎アーキテクチャ編 — Completion
 
 Day 1〜5では、
 
@@ -3152,7 +3206,7 @@ Robot Runtime
 
 ---
 
-# 73. 次のステップ — Physical AI実践ロボット統合編
+## 73. 次のステップ — Physical AI実践ロボット統合編
 
 ここまでのRobotRuntimeはFake implementationでした。
 
@@ -3225,3 +3279,22 @@ Closed-loop Evaluation
 > **Physical AIのarchitectureを学ぶ段階から、Physical AI systemを実際のrobotへdeployする段階へ進む**
 
 フェーズになります。
+
+---
+
+## 参考資料
+
+この教材は概念の入口を示すものです。仕様、API、手法の詳細は次の一次資料を参照してください。
+
+- [Gemini API documentation](https://ai.google.dev/gemini-api/docs)
+- [Pydantic documentation](https://docs.pydantic.dev/latest/)
+- [LeRobot documentation](https://huggingface.co/docs/lerobot/)
+- [Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware（ACT）](https://arxiv.org/abs/2304.13705)
+- [Diffusion Policy: Visuomotor Policy Learning via Action Diffusion](https://arxiv.org/abs/2303.04137)
+- [Flow Matching for Generative Modeling](https://arxiv.org/abs/2210.02747)
+- [A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning（DAgger）](https://proceedings.mlr.press/v15/ross11a.html)
+- [ROS REP 105: Coordinate Frames for Mobile Platforms](https://www.ros.org/reps/rep-0105.html)
+
+## License
+
+この教材は、個別に別の表示がある部分を除き、リポジトリの[MIT License](../LICENSE)で提供します。外部API、依存パッケージ、model、datasetには、それぞれの利用条件が適用されます。
