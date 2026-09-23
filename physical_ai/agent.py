@@ -4,13 +4,14 @@ from .grounder import Grounder
 from .grounding_result import GroundingResults, GroundingStatus
 from .perception import Perception
 from .plan_validator import PlanValidator
-from .robot_runtime import RobotRuntime
+from .robot_runtime import RobotRuntime, SkillExecutionOutcome
 from .recovery import RecoveryAction, RecoveryContext, RecoveryRouter
 from .skill_plan import SkillPlan
 from .skill_planner import SkillPlanner
 from .skill_request import SkillRequest
-from .skill_result import SkillResultStatus
+from .skill_result import SkillResult, SkillResultReason, SkillResultStatus
 from .system1_recovery import System1Recovery
+from .safety_supervisor import SafetySupervisor
 from .task_parser import TaskParser
 from .task_spec import TaskSpec
 from .world_state import WorldState
@@ -31,6 +32,7 @@ class Agent:
         self.robot_runtime = RobotRuntime()
         self.recovery_router = RecoveryRouter()
         self.system1_recovery = System1Recovery()
+        self.safety_supervisor = SafetySupervisor()
         self.max_retries = max_retries
 
     def run(self, instruction: str) -> bool:
@@ -75,8 +77,20 @@ class Agent:
                     step=skill_step,
                     timeout_sec=5.0,
                 )
+
                 while True:
-                    outcome = self.robot_runtime.execute(request)
+                    decision = self.safety_supervisor.check(request, world_state)
+
+                    if not decision.allowed:
+                        outcome = SkillExecutionOutcome(
+                            result=SkillResult(
+                                status=SkillResultStatus.FAILED,
+                                reason=SkillResultReason.SAFETY_VIOLATION,
+                            ),
+                            observation=None,
+                        )
+                    else:
+                        outcome = self.robot_runtime.execute(request)
 
                     if outcome.result.status == SkillResultStatus.SUCCEEDED:
                         execution_failed = False
@@ -89,6 +103,10 @@ class Agent:
                     )
                     if recovery_action is not None:
                         print(f"[Agent] Recovery action: {recovery_action.value}")
+
+                    if recovery_action == RecoveryAction.ABORT:
+                        print("[Agent] Aborted")
+                        return False
 
                     if recovery_action == RecoveryAction.ASK_SYSTEM1:
                         if outcome.observation is None:
