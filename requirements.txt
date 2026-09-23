@@ -1,10 +1,9 @@
 Pillow
 google-genai
+pydantic
 torch
 numpy
 matplotlib
-lerobot
 lerobot[dataset]
 requests
 laya
-
