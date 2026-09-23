@@ -1,4 +1,7 @@
+import os
 import time
+
+import requests
 
 from physical_ai.system1_recovery import System1Recovery
 from physical_ai.recovery import (
@@ -20,6 +23,51 @@ from physical_ai.world_state import (
     BoundingBox,
     Position,
 )
+
+
+# Establish the connection/model session before measuring benchmark cases.
+# This request is intentionally excluded from the benchmark timings.
+WARMUP_API_URL = os.getenv(
+    "TYPESAFE_SYSTEMONE_API_URL", "https://api.typesafe.ai/v1/systemone"
+)
+# Warm up the same model used by System1Recovery.  "noul" is not an accepted
+# System One model name and causes the API to return HTTP 400.
+WARMUP_MODEL = os.getenv("TYPESAFE_SYSTEMONE_MODEL", "jev-latest")
+WARMUP_TIMEOUT_SEC = 30
+
+
+def warm_up_system1() -> None:
+    headers = {"Content-Type": "application/json"}
+    api_key = os.getenv("TYPESAFE_API_KEY")
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    response = requests.post(
+        WARMUP_API_URL,
+        headers=headers,
+        json={
+            "state": "ready?",
+            "model": WARMUP_MODEL,
+            "questions": {
+                "ready": {
+                    "type": "choice",
+                    "instructions": "準備できているか答えてください",
+                    "criteria": {
+                        "yes": "準備できている",
+                        "no": "まだ準備できていない",
+                    },
+                }
+            },
+        },
+        timeout=WARMUP_TIMEOUT_SEC,
+    )
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        raise RuntimeError(
+            f"System 1 warm-up failed: {response.status_code} {response.text}"
+        ) from exc
+    print(f"System 1 warm-up completed ({WARMUP_MODEL})")
 
 
 world_state = WorldState(
@@ -96,6 +144,8 @@ cases = [
 
 
 system1 = System1Recovery()
+
+warm_up_system1()
 
 correct = 0
 total_latency_ms = 0.0
