@@ -2,3 +2,7 @@ __pycache__
 output
 .venv
 .env
+
+# Local Kev runtime installed by system1/setup_kev.sh
+system1/.kev/
+system1/.tools/
